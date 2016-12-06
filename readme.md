@@ -2,15 +2,18 @@
 ##What is TGBoost
 It is a **T**iny implement of **G**radient **Boost**ing tree, according to the xgboost algorithm, and support some features that xgboost has:
 
-- Built-in loss and Customized loss. 
+- Built-in loss and Customized loss
+
 	Built-in loss contains: Square error loss for regression task, Logistic loss for classification task	
 	For customize loss function,use `autograd` to calculate the grad and hess automaticly
 
 - Multi-processing 
+
 	when finding best tree node split
 	
 - Feature importance
 - Regularization
+
 	lambda, gamma (as in xgboost scoring function)
 
 - Randomness
