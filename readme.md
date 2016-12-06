@@ -1,6 +1,6 @@
 
 ##What is TGBoost
-It is a **T**iny implement of **G**radient **Boost**ing tree, according to the xgboost algorithm, and support some features in xgboost:
+It is a **T**iny implement of **G**radient **Boost**ing tree, based on the xgboost algorithm, and support some features in [xgboost](https://github.com/dmlc/xgboost):
 
 - Built-in loss and Customized loss
 
@@ -12,6 +12,13 @@ It is a **T**iny implement of **G**radient **Boost**ing tree, according to the x
 	when finding best tree node split
 	
 - Feature importance
+
+	output the feature importance after training
+	
+- Handle missing value
+
+	the tree can learn a direction for those with NAN feature value 
+
 - Regularization
 
 	lambda, gamma (as in xgboost scoring function)
@@ -114,7 +121,6 @@ feature_importance = tgb.feature_importance
 
 - early stopping
 - cross validation
-
 
 
 ##Reference
