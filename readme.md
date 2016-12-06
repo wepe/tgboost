@@ -57,7 +57,7 @@ params = {'loss': "logisticloss",
 tgb = TGBoost()
 tgb.fit(train_X, train_y, **params)
 
-preds = tgb.predict(data_X)
+preds = tgb.predict(train_X)
 feature_importance = tgb.feature_importance
 ```
 
@@ -92,7 +92,7 @@ params = {'loss': logistic_loss,
 tgb = TGBoost()
 tgb.fit(train_X, train_y, **params)
 
-preds = tgb.predict(data_X)
+preds = tgb.predict(train_X)
 feature_importance = tgb.feature_importance
 
 ```
