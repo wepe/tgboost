@@ -1,74 +1,48 @@
 
 ##What is TGBoost
-It is a **T**iny implement of **G**radient **Boost**ing tree, based on the xgboost algorithm, and support some features in [xgboost](https://github.com/dmlc/xgboost):
+It is a **T**iny implement of **G**radient **Boost**ing tree, based on the xgboost algorithm, and support most features in [xgboost](https://github.com/dmlc/xgboost). This project aims to help people get deeper insights into GBM, especially XGBoost. The current implement has little optimization, so the code is easy to follow. But this leads to high memory consumption and slow speed. 
 
-- Built-in loss and Customized loss
+Briefly, TGBoost supports:
 
-	- Built-in loss contains: Square error loss for regression task, Logistic loss for classification task	
-	- For customize loss function,use `autograd` to calculate the grad and hess automaticly
+- **Built-in loss**, Square error loss for regression task, Logistic loss for classification task
 
-- Multi-processing 
+- **Customized loss**, use `autograd` to calculate the grad and hess automaticly
 
-	when finding best tree node split
+- **Early stopping **, evaluate on validation set and conduct early stopping.
+
+- **Multi-processing**, when finding best tree node split
 	
-- Feature importance
-
-	output the feature importance after training
+- **Feature importance**, output the feature importance after training
 	
-- Handle missing value
+- **Handle missing value**, the tree can learn a direction for those with NAN feature value 
 
-	the tree can learn a direction for those with NAN feature value 
+- **Regularization**, lambda, gamma (as in xgboost scoring function)
 
-- Regularization
-
-	lambda, gamma (as in xgboost scoring function)
-
-- Randomness
-	- rowsample
-	- colsample_bytree
-	- colsample_bylevel
+- **Randomness**, subsample，colsample_bytree，colsample_bylevel
+- **Weighted loss function**, assign weight to each sample.
 
 ##Dependence
-TGBoost use `Pandas.DataFrame` to store data, and `autograd` to take derivation.
+TGBoost is implemented in `Python 2.7`, use `Pandas.DataFrame` to store data, and `autograd` to take derivation. These package can be easily installed using `pip`.
 
 - Pandas
 - Numpy
 - autograd
 
-##Example
 
-Here is a classification task example:
 
-```python
+## Compared with XGBoost
 
-from tgboost import TGBoost
-import pandas as pd
+It is a binary classification task, the dataset can be downlown from [here](), which has 40000 samples and each sample with 52 features, some feature has missing value. The dataset is splited into trainset and valset, and compare the performance of TGBoost and XGBoost.
 
-train = pd.read_csv('train.csv')
-train_y = train.label
-train_X = train.drop('label', axis=1)
+As the following figure shows, TGBoost get its best result at iteration 56 with 0.201 error rate. XGBoost gets  its best result at iteration 37 with 0.198 error rate. They are roughly the same!  However, I must say TGBoost is very slow.
 
-params = {'loss': "logisticloss",
-          'eta': 0.3,
-          'max_depth': 6,
-          'num_boost_round': 100,
-          'rowsample': 0.7,
-          'colsample_bytree': 0.7,
-          'colsample_bylevel': 0.7,
-          'min_sample_split': 10,
-          'l2_regularization': 10,
-          'gamma': 0.4,
-          'eval_metric': "acc",
-          'num_thread': 16}
+![](imgs/tgb_xgb.png)
 
-tgb = TGBoost()
-tgb.fit(train_X, train_y, **params)
 
-preds = tgb.predict(train_X)
-feature_importance = tgb.feature_importance
-```
 
-You can also define your own loss function:
+##More Example
+
+You can define your own loss function:
 
 ```python
 
@@ -76,40 +50,45 @@ from tgboost import TGBoost
 import pandas as pd
 import autograd.numpy as anp
 
-train = pd.read_csv('train.csv')
+train = pd.read_csv('../data/train.csv')
+train = train.sample(frac=1.0, axis=0)  # shuffle the data
+val = train.iloc[0:5000]
+train = train.iloc[5000:]
+
 train_y = train.label
 train_X = train.drop('label', axis=1)
+val_y = val.label
+val_X = val.drop('label', axis=1)
 
-def logistic_loss(pred,y):
+
+def logistic_loss(pred, y):
     return -(y*anp.log(pred) + (1-y)*anp.log(1-pred))
 
 params = {'loss': logistic_loss,
           'eta': 0.3,
           'max_depth': 6,
-          'num_boost_round': 100,
-          'rowsample': 0.7,
+          'num_boost_round': 500,
+          'scale_pos_weight': 1.0,
+          'subsample': 0.7,
           'colsample_bytree': 0.7,
-          'colsample_bylevel': 0.7,
+          'colsample_bylevel': 1.0,
           'min_sample_split': 10,
-          'l2_regularization': 10,
-          'gamma': 0.4,
-          'eval_metric': "acc",
+          'min_child_weight': 2,
+          'reg_lambda': 10,
+          'gamma': 0,
+          'eval_metric': "error",
+          'early_stopping_rounds': 20,
+          'maximize': False,
           'num_thread': 16}
 
 tgb = TGBoost()
-tgb.fit(train_X, train_y, **params)
-
-preds = tgb.predict(train_X)
-feature_importance = tgb.feature_importance
+tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
 
 ```
 
 ## TODO
 - reduce memory usage
 - speed up training and predicting
-- sample weights
-
-   	this is easy to implement, change `grad` and `hess` to:  `weight*grad`,  `weight*hess`
 
 - post prunning
 
@@ -119,7 +98,6 @@ feature_importance = tgb.feature_importance
 	
 	auc, mse, mae, precision, recall, f_score, etc.
 
-- early stopping
 - cross validation
 
 

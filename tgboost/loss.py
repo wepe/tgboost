@@ -5,8 +5,8 @@ elementwise_hess = lambda func: elementwise_grad(elementwise_grad(func))
 
 
 class BaseLoss(object):
-    def __init__(self, l2_regularization=0.0):
-        self.l2_regularization = l2_regularization
+    def __init__(self, reg_lambda=0.0):
+        self.reg_lambda = reg_lambda
 
     def grad(self, preds, labels):
         raise NotImplementedError()
@@ -24,9 +24,9 @@ class CustomizeLoss(BaseLoss):
     TODO: when customize loss is for regression, change the transform function
 
     """
-    def __init__(self, loss, l2_regularization=0.0):
+    def __init__(self, loss, reg_lambda=0.0):
         self.loss = loss
-        self.l2_regularization = l2_regularization
+        self.reg_lambda = reg_lambda
 
     def grad(self, preds, labels):
         preds = self.transform(preds)

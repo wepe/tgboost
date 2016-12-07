@@ -5,12 +5,12 @@ def accuracy(preds, labels):
     return np.mean(labels == preds.round())
 
 
-def auc(preds,labels):
-    pass
+def error(preds, labels):
+    return 1.0 - accuracy(preds,labels)
 
 
 metrics = {"acc": accuracy,
-           "auc": auc}
+           "error": error}
 
 
 def get_metric(eval_metric):

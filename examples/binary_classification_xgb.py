@@ -1,6 +1,5 @@
-from tgboost import TGBoost
+import xgboost as xgb
 import pandas as pd
-import autograd.numpy as anp
 
 train = pd.read_csv('../data/train.csv')
 train = train.sample(frac=1.0, axis=0)  # shuffle the data
@@ -12,26 +11,26 @@ train_X = train.drop('label', axis=1)
 val_y = val.label
 val_X = val.drop('label', axis=1)
 
+dtrain = xgb.DMatrix(train_X, label=train_y)
+dval = xgb.DMatrix(val_X, label=val_y)
 
-def logistic_loss(pred, y):
-    return -(y*anp.log(pred) + (1-y)*anp.log(1-pred))
-
-params = {'loss': logistic_loss,
+params = {'booster':'gbtree',
+          'objective': 'binary:logistic',
           'eta': 0.3,
           'max_depth': 6,
-          'num_boost_round': 500,
+          'num_boost_round': 10000,
           'scale_pos_weight': 1.0,
           'subsample': 0.7,
           'colsample_bytree': 0.7,
           'colsample_bylevel': 1.0,
           'min_sample_split': 10,
           'min_child_weight': 2,
-          'reg_lambda': 10,
+          'lambda': 10,
           'gamma': 0,
           'eval_metric': "error",
-          'early_stopping_rounds': 20,
           'maximize': False,
           'num_thread': 16}
 
-tgb = TGBoost()
-tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
+watchlist = [(dval, 'val')]
+model = xgb.train(params, dtrain,num_boost_round=10000, early_stopping_rounds=20, evals=watchlist)
+#  Best iteration 37, val-error:0.198

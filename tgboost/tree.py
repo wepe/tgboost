@@ -43,9 +43,10 @@ class Tree(object):
         self.root = None
         self.min_sample_split = None
         self.colsample_bylevel = None
-        self.l2_regularization = None
+        self.reg_lambda = None
         self.gamma = None
         self.num_thread = None
+        self.min_child_weight = None
         self.feature_importance = {}
 
     def calculate_leaf_score(self, Y):
@@ -53,7 +54,7 @@ class Tree(object):
         According to xgboost, the leaf score is :
             - G / (H+lambda)
         """
-        return - Y.grad.sum()/(Y.hess.sum()+self.l2_regularization)
+        return - Y.grad.sum()/(Y.hess.sum()+self.reg_lambda)
 
     def calculate_split_gain(self, left_Y, right_Y, G_nan, H_nan, nan_direction=0):
         """
@@ -61,28 +62,30 @@ class Tree(object):
           gain = 0.5 * (GL^2/(HL+lambda) + GR^2/(HR+lambda) - (GL+GR)^2/(HL+HR+lambda)) - gamma
 
         this gain is the loss reduction, We want it to be as large as possible.
+
+        G_nan, H_nan from NAN faeture value data, if nan_direction==0, they go to the left child.
         """
         GL = left_Y.grad.sum() + (1-nan_direction)*G_nan
         HL = left_Y.hess.sum() + (1-nan_direction)*H_nan
         GR = right_Y.grad.sum() + nan_direction*G_nan
         HR = right_Y.hess.sum() + nan_direction*H_nan
-        gain = 0.5*(GL**2/(HL+self.l2_regularization) + GR**2/(HR+self.l2_regularization)
-                    - (GL+GR)**2/(HL+HR+self.l2_regularization)) - self.gamma
+        gain = 0.5*(GL**2/(HL+self.reg_lambda) + GR**2/(HR+self.reg_lambda)
+                    - (GL+GR)**2/(HL+HR+self.reg_lambda)) - self.gamma
         return gain
 
     def find_best_threshold(self, data, col):
         """
         :param data:
-               columns: col, 'label', 'grad', 'hess'
+               the columns of the data: col, 'label', 'grad', 'hess'
 
-        find best threshold for the feature: col
+        find best threshold for the given feature: col
         """
         selected_data = data[[col, 'label', 'grad', 'hess']]
         best_threshold = None
         best_gain = - np.inf
         nan_direction = 0
 
-        # get the data with/without NAN value
+        # get the data with/without NAN feature value
         mask = selected_data[col].isnull()
         data_nan = selected_data[mask]
         G_nan = data_nan.grad.sum()
@@ -107,7 +110,7 @@ class Tree(object):
             left_Y = data_not_nan.iloc[:(i+1)]
             right_Y = data_not_nan.iloc[(i+1):]
 
-            # let the nan data go to left and right, and chose the way which gets the max gain
+            # let the NAN data go to left and right, and chose the way which gets the max gain
             nan_goto_left_gain = self.calculate_split_gain(left_Y,right_Y,G_nan,H_nan,nan_direction=0)
             nan_goto_right_gain = self.calculate_split_gain(left_Y, right_Y, G_nan, H_nan, nan_direction=1)
             if nan_goto_left_gain < nan_goto_right_gain:
@@ -127,7 +130,6 @@ class Tree(object):
         """
         find the (feature,threshold) with the largest gain
         if there are NAN in the feature, find its best direction to go
-        it is implemented in parallel
         """
         nan_direction = 0
         best_gain = - np.inf
@@ -180,13 +182,13 @@ class Tree(object):
         return left_data[X_cols], left_data[Y_cols], right_data[X_cols], right_data[Y_cols]
 
     def build(self, X, Y, max_depth):
-        # check if min_sample_split or max_depth satisfied
-        if X.shape[0] < self.min_sample_split or max_depth == 0:
+        # check if min_sample_split or max_depth or min_child_weight satisfied
+        if X.shape[0] < self.min_sample_split or max_depth == 0 or Y.hess.sum() < self.min_child_weight:
             is_leaf = True
             leaf_score = self.calculate_leaf_score(Y)
             return TreeNode(is_leaf=is_leaf, leaf_score=leaf_score)
 
-        # column sample when splitting each tree node
+        # column sample before splitting each tree node
         X_selected = X.sample(frac=self.colsample_bylevel, axis=1)
 
         # find the best feature(among the selected features) and its threshold to split
@@ -215,12 +217,13 @@ class Tree(object):
         return TreeNode(is_leaf=False, leaf_score=None, feature=best_feature, threshold=best_threshold,
                         left_child=left_tree, right_child=right_tree, nan_direction=nan_direction)
 
-    def fit(self, X, Y, max_depth=6, colsample_bylevel=1.0, min_sample_split=10, l2_regularization=1.0, gamma=0.0, num_thread=-1):
+    def fit(self, X, Y, max_depth=6, min_child_weight=1, colsample_bylevel=1.0, min_sample_split=10, reg_lambda=1.0, gamma=0.0, num_thread=-1):
         self.colsample_bylevel = colsample_bylevel
         self.min_sample_split = min_sample_split
-        self.l2_regularization = l2_regularization
+        self.reg_lambda = reg_lambda
         self.gamma = gamma
         self.num_thread = num_thread
+        self.min_child_weight = min_child_weight
         # build the tree by a recursive way
         self.root = self.build(X, Y, max_depth)
 

@@ -1,11 +1,11 @@
 from tgboost import TGBoost
 import pandas as pd
-import autograd.numpy as anp
 
 train = pd.read_csv('../data/train.csv')
 train = train.sample(frac=1.0, axis=0)  # shuffle the data
 val = train.iloc[0:5000]
 train = train.iloc[5000:]
+
 
 train_y = train.label
 train_X = train.drop('label', axis=1)
@@ -13,10 +13,7 @@ val_y = val.label
 val_X = val.drop('label', axis=1)
 
 
-def logistic_loss(pred, y):
-    return -(y*anp.log(pred) + (1-y)*anp.log(1-pred))
-
-params = {'loss': logistic_loss,
+params = {'loss': "logisticloss",
           'eta': 0.3,
           'max_depth': 6,
           'num_boost_round': 500,
@@ -33,5 +30,7 @@ params = {'loss': logistic_loss,
           'maximize': False,
           'num_thread': 16}
 
+
 tgb = TGBoost()
 tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
+#  best round is 56, best val-error is 0.201
