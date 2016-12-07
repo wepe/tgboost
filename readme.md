@@ -8,7 +8,7 @@ Briefly, TGBoost supports:
 
 - **Customized loss**, use `autograd` to calculate the grad and hess automaticly
 
-- **Early stopping **, evaluate on validation set and conduct early stopping.
+- **Early stopping**, evaluate on validation set and conduct early stopping.
 
 - **Multi-processing**, when finding best tree node split
 	
