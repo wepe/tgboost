@@ -32,7 +32,7 @@ TGBoost is implemented in `Python 2.7`, use `Pandas.DataFrame` to store data, an
 
 ## Compared with XGBoost
 
-It is a binary classification task, the dataset can be downlown from [here](), which has 40000 samples and each sample with 52 features, some feature has missing value. The dataset is splited into trainset and valset, and compare the performance of TGBoost and XGBoost.
+It is a binary classification task, the dataset can be downlown from [here](http://pan.baidu.com/s/1c23gJkc), which has 40000 samples and each sample with 52 features, some feature has missing value. The dataset is splited into trainset and valset, and compare the performance of TGBoost and XGBoost.
 
 As the following figure shows, TGBoost get its best result at iteration 56 with 0.201 error rate. XGBoost gets  its best result at iteration 37 with 0.198 error rate. They are roughly the same!  However, I must say TGBoost is very slow.
 
