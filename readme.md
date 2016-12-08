@@ -32,9 +32,9 @@ TGBoost is implemented in `Python 2.7`, use `Pandas.DataFrame` to store data, an
 
 ## Compared with XGBoost
 
-It is a binary classification task, the dataset can be downlown from [here](http://pan.baidu.com/s/1c23gJkc), which has 40000 samples and each sample with 52 features, some feature has missing value. The dataset is splited into trainset and valset, and compare the performance of TGBoost and XGBoost.
+It is a binary classification task, the dataset can be downloaded from [here](http://pan.baidu.com/s/1c23gJkc). It has 40000 samples and each sample with 52 features, some feature has missing value. The dataset is splited into trainset and validation set, and compare the performance of TGBoost and XGBoost on the validation set.
 
-As the following figure shows, TGBoost get its best result at iteration 56 with 0.201 error rate. XGBoost gets  its best result at iteration 37 with 0.198 error rate. They are roughly the same!  However, I must say TGBoost is very slow.
+As the following figure shows, TGBoost get its best result at iteration 56 with **0.201 error rate**. XGBoost gets  its best result at iteration 37 with **0.198 error rate**. They are roughly the same!  However, I must say TGBoost is relatively slow.
 
 ![](imgs/tgb_xgb.png)
 
@@ -100,7 +100,7 @@ tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
 
 - cross validation
 
-
+- implement a high-performance data structure to replace `Pandas.DataFrame`
 ##Reference
 
 - [XGBoost: A Scalable Tree Boosting System](https://arxiv.org/abs/1603.02754)
