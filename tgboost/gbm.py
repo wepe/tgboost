@@ -101,6 +101,9 @@ class TGBoost(object):
                 raise TypeError("val_X should be 'pd.core.series.Series'")
             val_X.reset_index(drop=True, inplace=True)
             val_y.reset_index(drop=True, inplace=True)
+            val_Y = pd.DataFrame(val_y.values, columns=['label'])
+            val_Y['y_pred'] = self.first_round_pred
+
 
         if maximize:
             best_val_metric = - np.inf
@@ -163,7 +166,8 @@ class TGBoost(object):
                     print "TGBoost round {iteration}, train-{eval_metric} is {train_metric}".format(
                         iteration=i, eval_metric=self.eval_metric, train_metric=train_metric)
                 else:
-                    val_metric = mertric_func(self.predict(val_X),val_y.values)
+                    val_Y['y_pred'] += self.eta * tree.predict(val_X)
+                    val_metric = mertric_func(self.loss.transform(val_Y.y_pred.values), val_Y.label.values)
                     print "TGBoost round {iteration}, train-{eval_metric} is {train_metric}, val-{eval_metric} is {val_metric}".format(
                         iteration=i, eval_metric=self.eval_metric, train_metric=train_metric, val_metric=val_metric
                     )
