@@ -35,11 +35,11 @@ def tied_rank(x):
 
 
 #  the auc code is from https://github.com/benhamner/Metrics, thanks benhamner
-def auc(posterior, actual):
-    r = tied_rank(posterior)
-    num_positive = len([0 for x in actual if x==1])
-    num_negative = len(actual)-num_positive
-    sum_positive = sum([r[i] for i in range(len(r)) if actual[i]==1])
+def auc(preds, labels):
+    r = tied_rank(preds)
+    num_positive = len([0 for x in labels if x==1])
+    num_negative = len(labels)-num_positive
+    sum_positive = sum([r[i] for i in range(len(r)) if labels[i]==1])
     auc = ((sum_positive - num_positive*(num_positive+1)/2.0) /
            (num_negative*num_positive))
     return auc
