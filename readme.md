@@ -24,9 +24,9 @@ Briefly, TGBoost supports:
 ##Dependence
 TGBoost is implemented in `Python 2.7`, use `Pandas.DataFrame` to store data, and `autograd` to take derivation. These package can be easily installed using `pip`.
 
-- Pandas
-- Numpy
-- autograd
+- [Pandas](https://github.com/pandas-dev/pandas)
+- [Numpy](https://github.com/numpy/numpy)
+- [autograd](https://github.com/HIPS/autograd)
 
 
 
@@ -96,7 +96,7 @@ tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
 
 - metric: 
 	
-	auc, mse, mae, precision, recall, f_score, etc.
+	precision, recall, f_score, etc.
 
 - cross validation
 
