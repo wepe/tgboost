@@ -27,7 +27,7 @@ params = {'loss': "logisticloss",
           'gamma': 0,
           'eval_metric': "auc",
           'early_stopping_rounds': 20,
-          'maximize': False,
+          'maximize': True,
           'num_thread': 16}
 
 
