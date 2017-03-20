@@ -1,5 +1,5 @@
+## What is TGBoost
 
-##What is TGBoost
 It is a **T**iny implement of **G**radient **Boost**ing tree, based on the xgboost algorithm, and support most features in [xgboost](https://github.com/dmlc/xgboost). This project aims to help people get deeper insights into GBM, especially XGBoost. The current implement has little optimization, so the code is easy to follow. But this leads to high memory consumption and slow speed. 
 
 Briefly, TGBoost supports:
@@ -21,7 +21,8 @@ Briefly, TGBoost supports:
 - **Randomness**, subsample，colsample_bytree，colsample_bylevel
 - **Weighted loss function**, assign weight to each sample.
 
-##Dependence
+## Dependence
+
 TGBoost is implemented in `Python 2.7`, use `Pandas.DataFrame` to store data, and `autograd` to take derivation. These package can be easily installed using `pip`.
 
 - [Pandas](https://github.com/pandas-dev/pandas)
@@ -40,7 +41,7 @@ As the following figure shows, TGBoost get its best result at iteration 56 with 
 
 
 
-##More Example
+## More Example
 
 You can define your own loss function:
 
@@ -101,7 +102,7 @@ tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
 - cross validation
 
 - implement a high-performance data structure to replace `Pandas.DataFrame`
-##Reference
+## Reference
 
 - [XGBoost: A Scalable Tree Boosting System](https://arxiv.org/abs/1603.02754)
 - [Higgs Boson Discovery with Boosted Trees](http://www.jmlr.org/proceedings/papers/v42/chen14.pdf)
