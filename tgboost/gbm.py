@@ -25,7 +25,6 @@ class TGBoost(object):
         self.gamma = None
         self.num_thread = None
         self.min_child_weight = None
-        self.min_child_weight = None
         self.scale_pos_weight = None
         self.feature_importance = defaultdict(lambda: 0)
 
