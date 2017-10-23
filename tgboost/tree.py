@@ -114,15 +114,16 @@ class Tree(object):
             nan_goto_left_gain = self.calculate_split_gain(left_Y,right_Y,G_nan,H_nan,nan_direction=0)
             nan_goto_right_gain = self.calculate_split_gain(left_Y, right_Y, G_nan, H_nan, nan_direction=1)
             if nan_goto_left_gain < nan_goto_right_gain:
-                nan_direction = 1
+                cur_nan_direction = 1
                 this_gain = nan_goto_right_gain
             else:
-                nan_direction = 0
+                cur_nan_direction = 0
                 this_gain = nan_goto_left_gain
 
             if this_gain > best_gain:
                 best_gain = this_gain
                 best_threshold = this_threshold
+                nan_direction = cur_nan_direction
 
         return col, best_threshold, best_gain, nan_direction
 
