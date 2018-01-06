@@ -1,1 +1,3 @@
-from .gbm import TGBoost
+from gbm import TGBoost
+
+tgb = TGBoost()

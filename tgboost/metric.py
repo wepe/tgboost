@@ -34,7 +34,8 @@ def tied_rank(x):
     return r
 
 
-#  the auc code is from https://github.com/benhamner/Metrics, thanks benhamner
+#  the auc code is from https://github.com/benhamner/Metrics
+#  here is an easy-to-understand implementation: https://gist.github.com/wepe/02e3842cc5224016b50d7e403c117bba
 def auc(preds, labels):
     r = tied_rank(preds)
     num_positive = len([0 for x in labels if x==1])
@@ -43,6 +44,7 @@ def auc(preds, labels):
     auc = ((sum_positive - num_positive*(num_positive+1)/2.0) /
            (num_negative*num_positive))
     return auc
+
 
 metrics = {"acc": accuracy,
            "error": error,
@@ -53,6 +55,3 @@ metrics = {"acc": accuracy,
 
 def get_metric(eval_metric):
     return metrics[eval_metric]
-
-
-

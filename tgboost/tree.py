@@ -1,9 +1,10 @@
+from tree_node import TreeNode
+from multiprocessing import Pool, cpu_count
+from functools import partial
+import numpy as np
 import copy_reg
 import types
-from multiprocessing import Pool
-from functools import partial
-import pandas as pd
-import numpy as np
+from time import time
 
 
 # use copy_reg to make the instance method picklable,
@@ -14,252 +15,270 @@ def _pickle_method(m):
     else:
         return getattr, (m.im_self, m.im_func.func_name)
 
+
 copy_reg.pickle(types.MethodType, _pickle_method)
 
 
-class TreeNode(object):
-    def __init__(self,is_leaf=False,leaf_score=None,feature=None,threshold=None,left_child=None,right_child=None,nan_direction=0):
-        """
-        :param is_leaf: if True, only need to initialize leaf_score. other params are for intermediate tree node
-        :param leaf_score: prediction score of the leaf node
-        :param feature: split feature of the intermediate node
-        :param threshold: split threshold of the intermediate node
-        :param left_child: left child node
-        :param right_child: right child node
-        :param nan_direction: if 0, those NAN sample goes to left child, if 1 goes to right child.
-                              goes to left child by default
-        """
-        self.is_leaf = is_leaf
-        self.feature = feature
-        self.threshold = threshold
-        self.nan_direction = nan_direction
-        self.left_child = left_child
-        self.right_child = right_child
-        self.leaf_score = leaf_score
-
-
 class Tree(object):
-    def __init__(self):
+    def __init__(self,
+                 min_sample_split,
+                 min_child_weight,
+                 max_depth,
+                 colsample,
+                 rowsample,
+                 reg_lambda,
+                 gamma,
+                 num_thread):
         self.root = None
-        self.min_sample_split = None
-        self.colsample_bylevel = None
-        self.reg_lambda = None
-        self.gamma = None
-        self.num_thread = None
-        self.min_child_weight = None
-        self.feature_importance = {}
+        self.min_sample_split = min_sample_split
+        self.min_child_weight = min_child_weight
+        self.max_depth = max_depth
+        self.colsample = colsample
+        self.rowsample = rowsample
+        self.reg_lambda = reg_lambda
+        self.gamma = gamma
+        # self.feature_importance = {}
+        self.alive_nodes = []
+        self.name_to_node = {}
+        # number of tree node of this tree
+        self.nodes_cnt = 0
+        # number of nan tree node of this tree
+        # nan tree node is the third child of the tree node
+        self.nan_nodes_cnt = 0
 
-    def calculate_leaf_score(self, Y):
-        """
-        According to xgboost, the leaf score is :
-            - G / (H+lambda)
-        """
-        return - Y.grad.sum()/(Y.hess.sum()+self.reg_lambda)
+        if num_thread == -1:
+            self.num_thread = cpu_count()
+        else:
+            self.num_thread = num_thread
 
-    def calculate_split_gain(self, left_Y, right_Y, G_nan, H_nan, nan_direction=0):
+        # to avoid divide zero
+        self.reg_lambda = max(self.reg_lambda, 0.00001)
+
+    def calculate_leaf_score(self, G, H):
+        """
+        According to xgboost, the leaf score is : - G / (H+lambda)
+        """
+        return - G / (H + self.reg_lambda)
+
+    def calculate_split_gain(self, G_left, H_left, G_nan, H_nan, G_total, H_total):
         """
         According to xgboost, the scoring function is:
           gain = 0.5 * (GL^2/(HL+lambda) + GR^2/(HR+lambda) - (GL+GR)^2/(HL+HR+lambda)) - gamma
 
         this gain is the loss reduction, We want it to be as large as possible.
 
-        G_nan, H_nan from NAN faeture value data, if nan_direction==0, they go to the left child.
         """
-        GL = left_Y.grad.sum() + (1-nan_direction)*G_nan
-        HL = left_Y.hess.sum() + (1-nan_direction)*H_nan
-        GR = right_Y.grad.sum() + nan_direction*G_nan
-        HR = right_Y.hess.sum() + nan_direction*H_nan
-        gain = 0.5*(GL**2/(HL+self.reg_lambda) + GR**2/(HR+self.reg_lambda)
-                    - (GL+GR)**2/(HL+HR+self.reg_lambda)) - self.gamma
-        return gain
+        G_right = G_total - G_left - G_nan
+        H_right = H_total - H_left - H_nan
 
-    def find_best_threshold(self, data, col):
-        """
-        :param data:
-               the columns of the data: col, 'label', 'grad', 'hess'
+        # if we let those with missing value go to a nan child
+        gain_1 = 0.5 * (G_left**2/(H_left+self.reg_lambda)
+                      + G_right**2/(H_right+self.reg_lambda)
+                      + G_nan**2/(H_nan+self.reg_lambda)
+                      - G_total**2/(H_total+self.reg_lambda)) - 2*self.gamma
 
-        find best threshold for the given feature: col
-        """
-        selected_data = data[[col, 'label', 'grad', 'hess']]
-        best_threshold = None
-        best_gain = - np.inf
-        nan_direction = 0
+        # if we let those with missing value go to left child
+        gain_2 = 0.5 * ((G_left+G_nan) ** 2 / (H_left + H_nan + self.reg_lambda)
+                        + G_right ** 2 / (H_right + self.reg_lambda)
+                        - G_total ** 2 / (H_total + self.reg_lambda)) - self.gamma
 
-        # get the data with/without NAN feature value
-        mask = selected_data[col].isnull()
-        data_nan = selected_data[mask]
-        G_nan = data_nan.grad.sum()
-        H_nan = data_nan.hess.sum()
-        data_not_nan = selected_data[~mask]
+        # if we let those with missing value go to right child
+        gain_3 = 0.5 * ( G_left ** 2 / (H_left + self.reg_lambda)
+                        + (G_right+G_nan) ** 2 / (H_right + H_nan + self.reg_lambda)
+                        - G_total ** 2 / (H_total + self.reg_lambda)) - self.gamma
 
-        data_not_nan.reset_index(inplace=True)
-        data_not_nan.is_copy = False
-        data_not_nan[col+'_idx'] = data_not_nan[col].argsort()
-        data_not_nan = data_not_nan.ix[data_not_nan[col+'_idx']]
-
-        # linear scan and find the best threshold
-        for i in xrange(data_not_nan.shape[0]-1):
-            #  not need to split at those same value
-            cur_value, nxt_value = data_not_nan[col].iloc[i], data_not_nan[col].iloc[i+1]
-            if cur_value == nxt_value:
-                continue
-
-            # split at this value
-            this_threshold = (cur_value + nxt_value) / 2.0
-            this_gain = None
-            left_Y = data_not_nan.iloc[:(i+1)]
-            right_Y = data_not_nan.iloc[(i+1):]
-
-            # let the NAN data go to left and right, and chose the way which gets the max gain
-            nan_goto_left_gain = self.calculate_split_gain(left_Y,right_Y,G_nan,H_nan,nan_direction=0)
-            nan_goto_right_gain = self.calculate_split_gain(left_Y, right_Y, G_nan, H_nan, nan_direction=1)
-            if nan_goto_left_gain < nan_goto_right_gain:
-                cur_nan_direction = 1
-                this_gain = nan_goto_right_gain
-            else:
-                cur_nan_direction = 0
-                this_gain = nan_goto_left_gain
-
-            if this_gain > best_gain:
-                best_gain = this_gain
-                best_threshold = this_threshold
-                nan_direction = cur_nan_direction
-
-        return col, best_threshold, best_gain, nan_direction
-
-    def find_best_feature_threshold(self, X, Y):
-        """
-        find the (feature,threshold) with the largest gain
-        if there are NAN in the feature, find its best direction to go
-        """
-        nan_direction = 0
-        best_gain = - np.inf
-        best_feature, best_threshold = None, None
-        rsts = None
-
-        # for each feature, find its best_threshold and best_gain, finally select the largest gain
-        # implement in parallel
-        cols = list(X.columns)
-        data = pd.concat([X, Y], axis=1)
-        func = partial(self.find_best_threshold, data)
-        if self.num_thread == -1:
-            pool = Pool()
-            rsts = pool.map(func, cols)
-            pool.close()
-
+        nan_go_to = None
+        gain = None
+        if gain_1 == max([gain_1, gain_2, gain_3]):
+            nan_go_to = 0  # nan child
+            gain = gain_1
+        elif gain_2 == max([gain_1, gain_2, gain_3]):
+            nan_go_to = 1  # left child
+            gain = gain_2
         else:
+            nan_go_to = 2  # right child
+            gain = gain_3
+
+        # in this case, the trainset does not contains nan samples
+        if H_nan == 0 and G_nan == 0:
+            nan_go_to = 3
+
+        return nan_go_to, gain
+
+    def _process_one_attribute_list(self, class_list, (col_attribute_list, col_attribute_list_cutting_index, col)):
+        """
+        this function is base for parallel using multiprocessing,
+        so all operation are read-only
+
+        """
+        ret = []
+        # linear scan this column's attribute list, bin by bin
+        for uint8_threshold in range(len(col_attribute_list_cutting_index) - 1):
+            start_ind = col_attribute_list_cutting_index[uint8_threshold]
+            end_ind = col_attribute_list_cutting_index[uint8_threshold + 1]
+            inds = col_attribute_list["index"][start_ind:end_ind]
+            tree_node_G_H = class_list.statistic_given_inds(inds)
+            ret.append((col, uint8_threshold, tree_node_G_H))
+        return ret
+
+    def build(self, attribute_list, class_list, col_sampler, bin_structure):
+        while len(self.alive_nodes) != 0:
+            self.nodes_cnt += len(self.alive_nodes)
+            # scan each selected attribute list
+            attributes = []
+            for col in col_sampler.col_selected:
+                col_attribute_list = attribute_list[col]
+                col_attribute_list_cutting_index = attribute_list.attribute_list_cutting_index[col]
+                attributes.append((col_attribute_list, col_attribute_list_cutting_index, col))
+            func = partial(self._process_one_attribute_list, class_list)
             pool = Pool(self.num_thread)
-            rsts = pool.map(func, cols)
+            rets = pool.map(func, attributes)
             pool.close()
 
-        for rst in rsts:
-            if rst[2] > best_gain:
-                best_gain = rst[2]
-                best_threshold = rst[1]
-                best_feature = rst[0]
-                nan_direction = rst[3]
+            # for each attribute's ret
+            for ret in rets:
+                # for each threshold of this attribute
+                for col, uint8_threshold, tree_node_G_H in ret:
+                    # for each related tree node
+                    for tree_node_name in tree_node_G_H.keys():
+                        # get the original tree_node by tree_node_name using self.name_to_node
+                        tree_node = self.name_to_node[tree_node_name]
 
-        return best_feature, best_threshold, best_gain, nan_direction
+                        G, H = tree_node_G_H[tree_node_name]
+                        G_left, H_left = tree_node.get_Gleft_Hleft(col, G, H)
+                        G_total, H_total = tree_node.Grad, tree_node.Hess
+                        G_nan, H_nan = tree_node.Grad_missing[col], tree_node.Hess_missing[col]
 
-    def split_dataset(self, X, Y, feature, threshold, nan_direction):
+                        nan_go_to, gain = self.calculate_split_gain(G_left, H_left, G_nan, H_nan, G_total, H_total)
+                        tree_node.update_best_gain(col, uint8_threshold, bin_structure[col][uint8_threshold], gain, nan_go_to)
+
+            # once had scan all column, we can get the best (feature,threshold,gain) for each alive tree node
+            cur_level_node_size = len(self.alive_nodes)
+            new_tree_nodes = []
+            treenode_leftinds_naninds = []
+            for _ in range(cur_level_node_size):
+                # for each current alive node, get its best splitting
+                tree_node = self.alive_nodes.pop(0)
+                best_feature, best_uint8_threshold, best_threshold, best_gain, best_nan_go_to = tree_node.get_best_feature_threshold_gain()
+                tree_node.nan_go_to = best_nan_go_to
+
+                if best_gain > 0:
+                    left_child = TreeNode(name=3*tree_node.name-1, depth=tree_node.depth+1, feature_dim=attribute_list.feature_dim)
+                    right_child = TreeNode(name=3*tree_node.name+1, depth=tree_node.depth+1, feature_dim=attribute_list.feature_dim)
+                    nan_child = None
+                    # this case we can create the nan child
+                    if best_nan_go_to == 0:
+                        nan_child = TreeNode(name=3*tree_node.name, depth=tree_node.depth+1, feature_dim=attribute_list.feature_dim)
+                        self.nan_nodes_cnt += 1
+                    # this tree node is internal node
+                    tree_node.internal_node_setter(best_feature, best_uint8_threshold, best_threshold, nan_child, left_child, right_child)
+
+                    new_tree_nodes.append(left_child)
+                    new_tree_nodes.append(right_child)
+                    self.name_to_node[left_child.name] = left_child
+                    self.name_to_node[right_child.name] = right_child
+                    if nan_child is not None:
+                        new_tree_nodes.append(nan_child)
+                        self.name_to_node[nan_child.name] = nan_child
+
+                    # to update class_list.corresponding_tree_node one pass,
+                    # we should save (tree_node,left_inds, nan_inds)
+                    left_inds = attribute_list[best_feature]["index"][0:attribute_list.attribute_list_cutting_index[best_feature][best_uint8_threshold+1]]
+                    nan_inds = attribute_list.missing_value_attribute_list[best_feature]
+                    treenode_leftinds_naninds.append((tree_node, (set(left_inds), set(nan_inds), best_nan_go_to)))
+                else:
+                    # this tree node is leaf node
+                    leaf_score = self.calculate_leaf_score(tree_node.Grad, tree_node.Hess)
+                    tree_node.leaf_node_setter(leaf_score)
+
+            # update class_list.corresponding_tree_node one pass
+
+            class_list.update_corresponding_tree_node(treenode_leftinds_naninds)
+
+            # update histogram(Grad,Hess,num_sample) for each new tree node
+            class_list.update_histogram_for_tree_node()
+
+            # update Grad_missing, Hess_missing for each new tree node
+            for tree_node in new_tree_nodes:
+                tree_node.reset_Grad_Hess_missing()
+            class_list.update_grad_hess_missing_for_tree_node(attribute_list.missing_value_attribute_list)
+
+            # process the new tree nodes
+            # satisfy max_depth? min_child_weight? min_sample_split?
+            # if yes, it is leaf node, calculate its leaf score
+            # if no, put into self.alive_node
+            while len(new_tree_nodes) != 0:
+                tree_node = new_tree_nodes.pop()
+                if tree_node.depth >= self.max_depth \
+                        or tree_node.Hess < self.min_child_weight \
+                        or tree_node.num_sample <= self.min_sample_split:
+                    tree_node.leaf_node_setter(self.calculate_leaf_score(tree_node.Grad, tree_node.Hess))
+                    self.nodes_cnt += 1
+                else:
+                    self.alive_nodes.append(tree_node)
+
+    def fit(self, attribute_list, class_list, row_sampler, col_sampler, bin_structure):
+        # when we start to fit a tree, we first conduct row and column sampling
+        col_sampler.shuffle()
+        row_sampler.shuffle()
+        class_list.sampling(row_sampler.row_mask)
+
+        # then we create the root node, initialize histogram(Gradient sum and Hessian sum)
+        root_node = TreeNode(name=1, depth=1, feature_dim=attribute_list.feature_dim)
+        root_node.Grad_setter(class_list.grad.sum())
+        root_node.Hess_setter(class_list.hess.sum())
+        self.root = root_node
+
+        # every time a new node is created, we put it into self.name_to_node
+        self.name_to_node[root_node.name] = root_node
+
+        # put it into the alive_node, and fill the class_list, all data are assigned to root node initially
+        self.alive_nodes.append(root_node)
+        for i in range(class_list.dataset_size):
+            class_list.corresponding_tree_node[i] = root_node
+
+        # then build the tree util there is no alive tree_node to split
+        self.build(attribute_list, class_list, col_sampler, bin_structure)
+        self.clean_up()
+
+    def _predict(self, feature):
         """
-        split the dataset according to (feature,threshold), nan_direction
-            if faeture_value < feature_threshold, samples go to left child
-            if faeture_value >= feature_threshold, samples go to right child
-            if feature_value==NAN and nan_direction==0, samples go to left child.
-            if feature_value==NAN and nan_direction==1, samples go to right child.
+        :param feature: feature of a single sample
+        :return:
         """
-        X_cols, Y_cols = list(X.columns), list(Y.columns)
-        data = pd.concat([X, Y], axis=1)
-        right_data, left_data = None, None
-        if nan_direction == 0:
-            mask = data[feature] >= threshold
-            right_data = data[mask]
-            left_data = data[~mask]
-        else:
-            mask = data[feature] < threshold
-            right_data = data[~mask]
-            left_data = data[mask]
-        return left_data[X_cols], left_data[Y_cols], right_data[X_cols], right_data[Y_cols]
-
-    def build(self, X, Y, max_depth):
-        # check if min_sample_split or max_depth or min_child_weight satisfied
-        if X.shape[0] < self.min_sample_split or max_depth == 0 or Y.hess.sum() < self.min_child_weight:
-            is_leaf = True
-            leaf_score = self.calculate_leaf_score(Y)
-            return TreeNode(is_leaf=is_leaf, leaf_score=leaf_score)
-
-        # column sample before splitting each tree node
-        X_selected = X.sample(frac=self.colsample_bylevel, axis=1)
-
-        # find the best feature(among the selected features) and its threshold to split
-        best_feature, best_threshold, best_gain, nan_direction = self.find_best_feature_threshold(X_selected, Y)
-
-        # if the gain is negative, it means the loss increase after splitting, so we stop split the tree node
-        # node that xgboost does not stop, but adopt post pruning instead
-        if best_gain < 0:
-            is_leaf = True
-            leaf_score = self.calculate_leaf_score(Y)
-            return TreeNode(is_leaf=is_leaf, leaf_score=leaf_score)
-
-        # if the gain is not negative, we split the data(original X) according to (best_feature,best_threshold) and nan_direction
-        # then feed left data to left child, right data to right child
-        # build the tree recursively
-        left_X, left_Y, right_X, right_Y = self.split_dataset(X,Y,best_feature,best_threshold,nan_direction)
-        left_tree = self.build(left_X, left_Y, max_depth-1)
-        right_tree = self.build(right_X, right_Y, max_depth-1)
-
-        # update the feature importance
-        if self.feature_importance.has_key(best_feature):
-            self.feature_importance[best_feature] += 1
-        else:
-            self.feature_importance[best_feature] = 0
-
-        return TreeNode(is_leaf=False, leaf_score=None, feature=best_feature, threshold=best_threshold,
-                        left_child=left_tree, right_child=right_tree, nan_direction=nan_direction)
-
-    def fit(self, X, Y, max_depth=6, min_child_weight=1, colsample_bylevel=1.0, min_sample_split=10, reg_lambda=1.0, gamma=0.0, num_thread=-1):
-        self.colsample_bylevel = colsample_bylevel
-        self.min_sample_split = min_sample_split
-        self.reg_lambda = reg_lambda
-        self.gamma = gamma
-        self.num_thread = num_thread
-        self.min_child_weight = min_child_weight
-        # build the tree by a recursive way
-        self.root = self.build(X, Y, max_depth)
-
-    def _predict(self, treenode, X):
-        """
-        predict a single sample
-        note that X is a tupe(index,pandas.core.series.Series) from df.iterrows()
-        """
-        if treenode.is_leaf:
-            return treenode.leaf_score
-        elif pd.isnull(X[1][treenode.feature]):
-            if treenode.nan_direction == 0:
-                return self._predict(treenode.left_child, X)
+        cur_tree_node = self.root
+        while not cur_tree_node.is_leaf:
+            # if the split feature's value of this sample is nan
+            # then we first check whether cur_tree_node.nan_child exist
+            # if exiist, then go to nan_child
+            # if not exist, check cur_tree_node.nan_go_to.
+            if np.isnan(feature[cur_tree_node.split_feature]):
+                if cur_tree_node.nan_child is None:
+                    if cur_tree_node.nan_go_to == 1:
+                        cur_tree_node = cur_tree_node.left_child
+                    elif cur_tree_node.nan_go_to == 2:
+                        cur_tree_node = cur_tree_node.right_child
+                    elif cur_tree_node.nan_go_to == 3:
+                        # Sudden fantasy
+                        # any other solution?
+                        if cur_tree_node.left_child.num_sample > cur_tree_node.right_child.num_sample:
+                            cur_tree_node = cur_tree_node.left_child
+                        else:
+                            cur_tree_node = cur_tree_node.right_child
+                else:
+                    cur_tree_node = cur_tree_node.nan_child
+            elif feature[cur_tree_node.split_feature] <= cur_tree_node.split_threshold:
+                cur_tree_node = cur_tree_node.left_child
             else:
-                return self._predict(treenode.right_child, X)
-        elif X[1][treenode.feature] < treenode.threshold:
-            return self._predict(treenode.left_child, X)
-        else:
-            return self._predict(treenode.right_child, X)
+                cur_tree_node = cur_tree_node.right_child
+        return cur_tree_node.leaf_score
 
-    def predict(self, X):
-        """
-        predict multi samples
-        X is pandas.core.frame.DataFrame
-        """
-        preds = None
-        samples = X.iterrows()
-
-        func = partial(self._predict, self.root)
-        if self.num_thread == -1:
-            pool = Pool()
-            preds = pool.map(func, samples)
-            pool.close()
-        else:
-            pool = Pool()
-            preds = pool.map(func, samples)
-            pool.close()
+    def predict(self, features):
+        pool = Pool(self.num_thread)
+        preds = pool.map(self._predict, features)
+        pool.close()
         return np.array(preds)
+
+    def clean_up(self):
+        del self.alive_nodes, self.min_sample_split, self.min_child_weight, self.rowsample,\
+            self.colsample, self.max_depth, self.reg_lambda, self.gamma

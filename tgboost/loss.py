@@ -5,8 +5,8 @@ elementwise_hess = lambda func: elementwise_grad(elementwise_grad(func))
 
 
 class BaseLoss(object):
-    def __init__(self, reg_lambda=0.0):
-        self.reg_lambda = reg_lambda
+    def __init__(self):
+        pass
 
     def grad(self, preds, labels):
         raise NotImplementedError()
@@ -24,9 +24,9 @@ class CustomizeLoss(BaseLoss):
     TODO: when customize loss is for regression, change the transform function
 
     """
-    def __init__(self, loss, reg_lambda=0.0):
+    def __init__(self, loss):
+        super(CustomizeLoss, self).__init__()
         self.loss = loss
-        self.reg_lambda = reg_lambda
 
     def grad(self, preds, labels):
         preds = self.transform(preds)
@@ -67,14 +67,12 @@ class LogisticLoss(BaseLoss):
         """
         logistic tranformation
         """
-        return 1.0/(1.0+np.exp(-preds))
+        return np.clip(1.0/(1.0+np.exp(-preds)),0.00001,0.99999)
 
     def grad(self, preds, labels):
         preds = self.transform(preds)
         return (1-labels)/(1-preds) - labels/preds
 
-    def hess(self,preds, labels):
+    def hess(self, preds, labels):
         preds = self.transform(preds)
         return labels/np.square(preds) + (1-labels)/np.square(1-preds)
-
-
