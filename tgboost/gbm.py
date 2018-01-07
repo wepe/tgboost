@@ -7,7 +7,7 @@ from class_list import ClassList
 from binning import BinStructure
 from sampling import RowSampler, ColumnSampler
 import logging
-
+from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s : %(message)s', datefmt="[%H:%M:%S]")
 
@@ -200,3 +200,23 @@ class TGBoost(object):
         for tree in self.trees:
             preds += self.eta * tree.predict(features)
         return self.loss.transform(preds)
+
+    @property
+    def feature_importance(self):
+        feature_importance = defaultdict(lambda: 0)
+        for tree in self.trees:
+            # breadth first traversal
+            nodes = []
+            root = tree.root
+            nodes.append(root)
+            while len(nodes) != 0:
+                size = len(nodes)
+                for _ in range(size):
+                    cur_node = nodes.pop(0)
+                    if not cur_node.is_leaf:
+                        feature_importance[cur_node.split_feature] += 1
+                        nodes.append(cur_node.left_child)
+                        nodes.append(cur_node.right_child)
+                        if cur_node.nan_child is not None:
+                            nodes.append(cur_node.nan_child)
+        return sorted(feature_importance.items(),key=lambda x:x[1],reverse=True)

@@ -37,7 +37,6 @@ class Tree(object):
         self.rowsample = rowsample
         self.reg_lambda = reg_lambda
         self.gamma = gamma
-        # self.feature_importance = {}
         self.alive_nodes = []
         self.name_to_node = {}
         # number of tree node of this tree

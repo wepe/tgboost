@@ -33,3 +33,4 @@ params = {'loss': "logisticloss",
 
 tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
 # TGBoost training Stop, best round is 141, best auc is 0.9061
+print tgb.feature_importance
