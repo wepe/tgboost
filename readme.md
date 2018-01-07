@@ -88,7 +88,7 @@ tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
 ```
 
 ## TODO
-- support more features, cross validation, scale pos weight, etc
+- support more features, cross validation, etc
 
 - post prunning
 
