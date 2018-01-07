@@ -19,11 +19,14 @@ class ClassList(object):
         for i in range(self.dataset_size):
             self.pred[i] += eta*self.corresponding_tree_node[i].leaf_score
 
-    def update_grad_hess(self, loss):
-        # self.grad = loss.grad(self.pred, self.label)
-        # self.hess = loss.hess(self.pred, self.label)
+    def update_grad_hess(self, loss, scale_pos_weight):
         self.grad[:] = loss.grad(self.pred, self.label)
         self.hess[:] = loss.hess(self.pred, self.label)
+        if scale_pos_weight != 1:
+            for i in range(self.dataset_size):
+                if self.label[i] == 1:
+                    self.grad[i] *= scale_pos_weight
+                    self.hess[i] *= scale_pos_weight
 
     def sampling(self, row_mask):
         self.grad *= row_mask

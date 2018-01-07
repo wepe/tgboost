@@ -102,7 +102,7 @@ class TGBoost(object):
         attribute_list = AttributeList(features, bin_structure)
         class_list = ClassList(label)
         class_list.initialize_pred(self.first_round_pred)
-        class_list.update_grad_hess(self.loss)
+        class_list.update_grad_hess(self.loss, self.scale_pos_weight)
 
         # to evaluate on validation set and conduct early stopping
         # we should get (val_features,val_label)
@@ -143,7 +143,7 @@ class TGBoost(object):
 
             # when finish building this tree, update the class_list.pred, grad, hess
             class_list.update_pred(self.eta)
-            class_list.update_grad_hess(self.loss)
+            class_list.update_grad_hess(self.loss, self.scale_pos_weight)
 
             # save this tree
             self.trees.append(tree)
