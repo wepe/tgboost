@@ -49,7 +49,7 @@ You can define your own loss function:
 
 ```python
 
-from tgboost import tgb
+import tgboost as tgb
 import pandas as pd
 import autograd.numpy as anp
 
@@ -83,7 +83,8 @@ params = {'loss': logistic_loss,
           'maximize': False,
           'num_thread': 16}
 
-tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
+model = tgb.train(train_X, train_y, validation_data=(val_X, val_y), **params)
+print model.predict(val_X)
 
 ```
 
@@ -92,7 +93,7 @@ tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
 
 - post prunning
 
-- more testing. evaluate the effectiveness of the method TGBoost use to handle missing value
+- more tests. evaluate the effectiveness of the method TGBoost use to handle missing value
 
 - Because of Python GIL, TGBoost use multiprocessing instead of threading. However, memory are not shared between subprocess. Thus Attribute list and Class list are copy to each subprocess, which lead to extra memory consumption and Interprocess communication .
 
