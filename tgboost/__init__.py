@@ -1,3 +1,1 @@
-from gbm import TGBoost
-
-tgb = TGBoost()
+from .training import train

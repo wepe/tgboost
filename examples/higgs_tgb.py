@@ -1,7 +1,8 @@
-from tgboost import tgb
+import tgboost as tgb
 import pandas as pd
 import numpy as np
 
+# kaggle higgs data set
 train = pd.read_csv('../../data/train.csv').drop(["EventId", "Weight"], axis=1)
 val = pd.read_csv('../../data/test.csv').drop(["EventId", "Weight"], axis=1)
 train.replace(to_replace=-999., value=np.nan, inplace=True)
@@ -31,6 +32,6 @@ params = {'loss': "logisticloss",
           'early_stopping_rounds': 20,
           'maximize': True}
 
-tgb.fit(train_X, train_y, validation_data=(val_X, val_y), **params)
+model = tgb.train(train_X, train_y, validation_data=(val_X, val_y), **params)
+print model.feature_importance
 # TGBoost training Stop, best round is 141, best auc is 0.9061
-print tgb.feature_importance
