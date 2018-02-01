@@ -9,6 +9,5 @@ setup(
     url='http://wepon.me',
     packages=['tgboost'],
     package_data={'tgboost': ['tgboost.jar']},
-    include_package_data = True,
     package_dir={'tgboost': 'tgboost'},
 )
