@@ -1,101 +1,79 @@
 ## What is TGBoost
 
-It is a **T**iny implement of **G**radient **Boost**ing tree, based on  XGBoost's scoring function and SLIQ's efficient tree building algorithm. TGBoost first conduct binning on numerical variables (as many histogram based algorithms do), then build the tree in a level-wise way as in SLIQ (by constructing Attribute list and Class list). 
+It is a **T**iny implement of **G**radient **Boost**ing tree, based on  XGBoost's scoring function and SLIQ's efficient tree building algorithm. TGBoost build the tree in a level-wise way as in SLIQ (by constructing Attribute list and Class list). Currently, TGBoost support  parallel learning on single machine,  the speed and memory consumption are comparable to XGBoost.
 
- Briefly, TGBoost supports:
 
-- **Built-in loss**, Square error loss for regression task, Logistic loss for classification task
+TGBoost supports most features as other library:  
 
-- **Customized loss**, use `autograd` to calculate the grad and hess automaticly
+- **Built-in loss** , Square error loss for regression task, Logistic loss for classification task
 
-- **Early stopping**, evaluate on validation set and conduct early stopping.
+- **Early stopping** , evaluate on validation set and conduct early stopping
 
-- **Parallel learning**, when finding best tree node split
-	
-- **Feature importance**, output the feature importance after training 
+-  **Feature importance** , output the feature importance after training
 
-- **Regularization**, lambda, gamma (as in xgboost scoring function)
+- **Regularization** , lambda, gamma
 
 - **Randomness**, subsample，colsample
 
-- **Weighted loss function**, assign weight to each sample.
+- **Weighted loss function** , assign weight to each sample
+
+
+Another two features  are novel: 
 
 - **Handle missing value**, XGBoost learn a direction for those with missing value, the direction is left or right. TGBoost take a different approach: it enumerate missing value go to left child, right child and missing value child, then choose the best one. So TGBoost use Ternary Tree.
 
-
-## Dependence
-
-TGBoost is implemented in `Python 2.7`, use `Numpy ` and  `autograd` .These package can be easily installed using `pip`.
+-  **Handle categorical feature**, TGBoost order the categorical feature by their statistic (Gradient_sum / Hessian_sum) on each tree node, then conduct split finding as numeric feature.
 
 
-- [Numpy](https://github.com/numpy/numpy)
-- [autograd](https://github.com/HIPS/autograd)
+## Installation
+
+The current version is implemented in pure Java, to use TGBoost you should first install [JDK](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html). For Python user, Python binding is also provided:
+
+```
+git clone git@github.com:wepe/tgboost.git
+cd python-package
+sudo python setup.py install
+```
+
+## To Understand TGBoost
+
+For those want to understand how TGBoost work, and dive into Gradient Boosting Machine, please refer to the Python implementation of TGBoost: [tgboost-python](https://github.com/wepe/tgboost/tree/tgboost-python), the python source code is relatively easy to follow. 
 
 
+## Example
 
-## Compared with XGBoost
-
-It is a binary classification task, the dataset can be downloaded from [here](http://pan.baidu.com/s/1c23gJkc). It has 40000 samples and each sample with 52 features, some feature has missing value. The dataset is splited into trainset and validation set, and compare the performance of TGBoost and XGBoost on the validation set.
-
-As the following figure shows, TGBoost get its best result at iteration 56 with **0.201 error rate**. XGBoost gets  its best result at iteration 37 with **0.198 error rate**. They are roughly the same.  However, TGBoost is relatively slow.
-
-![](imgs/tgb_xgb.png)
-
-
-
-## More Example
-
-You can define your own loss function:
+Here is an example, download the data [here](https://pan.baidu.com/s/1dGDr7pR)
 
 ```python
 
 import tgboost as tgb
-import pandas as pd
-import autograd.numpy as anp
 
-train = pd.read_csv('../data/train.csv')
-train = train.sample(frac=1.0, axis=0)  # shuffle the data
-val = train.iloc[0:5000]
-train = train.iloc[5000:]
+file_training = "~/data/train.csv"
+file_validation = "~/data/val.csv"
+file_testing = "~/data/test.csv"
+file_output = "~/data/prediction.csv"
+categorical_features = ["PRI_jet_num"]
+early_stopping_rounds = 10
+maximize = True
+eval_metric = "auc"
+loss = "logloss"
+eta = 0.1
+num_boost_round = 200
+max_depth = 7
+scale_pos_weight = 1
+subsample = 0.8
+colsample = 0.8
+min_child_weight = 1
+min_sample_split = 10
+reg_lambda = 1.0
+gamma = 0
+num_thread = -1
 
-train_y = train.label
-train_X = train.drop('label', axis=1)
-val_y = val.label
-val_X = val.drop('label', axis=1)
-
-
-def logistic_loss(pred, y):
-    return -(y*anp.log(pred) + (1-y)*anp.log(1-pred))
-
-params = {'loss': logistic_loss,
-          'eta': 0.3,
-          'max_depth': 6,
-          'num_boost_round': 500,
-          'scale_pos_weight': 1.0,
-          'subsample': 0.7,
-          'colsample': 0.7,
-          'min_sample_split': 10,
-          'min_child_weight': 2,
-          'reg_lambda': 10,
-          'gamma': 0,
-          'eval_metric': "error",
-          'early_stopping_rounds': 20,
-          'maximize': False,
-          'num_thread': 16}
-
-model = tgb.train(train_X, train_y, validation_data=(val_X, val_y), **params)
-print model.predict(val_X)
+tgb.run(file_training, file_validation, file_testing, file_output, categorical_features, early_stopping_rounds,
+        maximize, eval_metric,loss, eta, num_boost_round, max_depth, scale_pos_weight, subsample, colsample,
+        min_child_weight, min_sample_split, reg_lambda, gamma, num_thread)
 
 ```
-
-## TODO
-- support more features, cross validation, etc
-
-- post prunning
-
-- more tests. evaluate the effectiveness of the method TGBoost use to handle missing value
-
-- Because of Python GIL, TGBoost use multiprocessing instead of threading. However, memory are not shared between subprocess. Thus Attribute list and Class list are copy to each subprocess, which lead to extra memory consumption and Interprocess communication .
 
 
 ## Reference
