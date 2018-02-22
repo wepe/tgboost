@@ -30,7 +30,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 public class ModelSerializer {
-    public static String serializeLeafNode(TreeNode node){
+    private static String serializeLeafNode(TreeNode node){
         StringBuilder sb = new StringBuilder();
         sb.append(node.index);
         sb.append(":leaf=");
@@ -38,7 +38,7 @@ public class ModelSerializer {
         return sb.toString();
     }
 
-    public static String serializeInternalNode(TreeNode node){
+    private static String serializeInternalNode(TreeNode node){
         StringBuilder sb = new StringBuilder();
         sb.append(node.index);
         sb.append(":[");
@@ -82,8 +82,8 @@ public class ModelSerializer {
         ArrayList<Tree> trees = gbm.getTrees();
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.valueOf(first_round_predict)+"\n");
-        sb.append(String.valueOf(eta)+"\n");
+        sb.append("first_round_predict="+first_round_predict+"\n");
+        sb.append("eta="+eta+"\n");
         if(loss instanceof LogisticLoss){
             sb.append("logloss"+"\n");
         }else {
@@ -131,8 +131,8 @@ public class ModelSerializer {
     public static GBM load_model(String path){
         try{
             BufferedReader br = new BufferedReader(new FileReader(path));
-            double first_round_predict = Double.parseDouble(br.readLine());
-            double eta = Double.parseDouble(br.readLine());
+            double first_round_predict = Double.parseDouble(br.readLine().split("=")[1]);
+            double eta = Double.parseDouble(br.readLine().split("=")[1]);
             Loss loss = null;
             if(br.readLine().equals("logloss")){
                 loss = new LogisticLoss();
