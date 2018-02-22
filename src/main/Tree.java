@@ -20,6 +20,9 @@ public class Tree {
     //number of nan tree node of this tree
     public int nan_nodes_cnt = 0;
 
+    public Tree(TreeNode root){
+        this.root = root;
+    }
 
     public Tree(int min_sample_split,
                 double min_child_weight,
@@ -393,8 +396,9 @@ public class Tree {
                     }
 
                 }else{
-                    //not missing value,consider split_feature categorical or numeric
-                    if(cat_features_cols.contains(cur_tree_node.split_feature)){
+                    //not missing value
+                    // consider split_feature categorical or numeric
+                    if(cur_tree_node.split_left_child_catvalue!=null){
                         if(cur_tree_node.split_left_child_catvalue.contains((double) feature[cur_tree_node.split_feature])){
                             cur_tree_node = cur_tree_node.left_child;
                         }else {
@@ -453,5 +457,8 @@ public class Tree {
         return s;
     }
 
+    public TreeNode getRoot() {
+        return root;
+    }
 }
 

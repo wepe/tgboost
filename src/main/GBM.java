@@ -2,6 +2,9 @@ package main;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
@@ -25,6 +28,14 @@ public class GBM {
     private String eval_metric;
 
     private static Logger logger = Logger.getLogger("InfoLogging");
+
+    public GBM(){};
+    public GBM(ArrayList<Tree> trees, Loss loss, double first_round_pred, double eta){
+        this.trees = trees;
+        this.loss = loss;
+        this.first_round_pred = first_round_pred;
+        this.eta = eta;
+    }
 
     public void fit(String file_training,
                     String file_validation,
@@ -174,7 +185,7 @@ public class GBM {
     }
 
     public double[] predict(float[][] features){
-        logger.info("TGBoost start predicting,results are saved into output.txt");
+        logger.info("TGBoost start predicting...");
         double[] pred = new double[features.length];
         for(int i=0;i<pred.length;i++){
             pred[i] += first_round_pred;
@@ -186,6 +197,22 @@ public class GBM {
             }
         }
         return this.loss.transform(pred);
+    }
+
+    public void predict(String file_test,String file_output){
+        TestData testdata = new TestData(file_test);
+        double[] preds = this.predict(testdata.origin_feature);
+        String[] strs = new String[preds.length];
+        for(int i=0;i<strs.length;i++){
+            strs[i] = String.valueOf(preds[i]);
+        }
+        String content = String.join("\n",strs);
+        try{
+            Files.write(Paths.get(file_output), content.getBytes());
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+
     }
 
     private double calculate_metric(String eval_metric,double[] pred,double[] label){
@@ -213,4 +240,19 @@ public class GBM {
         return sum/vals.length;
     }
 
+    public double getFirst_round_pred(){
+        return this.first_round_pred;
+    }
+
+    public double getEta(){
+        return this.eta;
+    }
+
+    public Loss getLoss(){
+        return this.loss;
+    }
+
+    public ArrayList<Tree> getTrees() {
+        return this.trees;
+    }
 }
