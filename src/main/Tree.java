@@ -22,6 +22,7 @@ public class Tree {
 
     public Tree(TreeNode root){
         this.root = root;
+        this.num_thread = Runtime.getRuntime().availableProcessors();
     }
 
     public Tree(int min_sample_split,
