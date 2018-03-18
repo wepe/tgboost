@@ -1,1 +1,1 @@
-from .training import run
+from .train import train

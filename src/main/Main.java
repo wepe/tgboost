@@ -1,17 +1,12 @@
 package main;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 
 public class Main {
-    public static void main(String[] args){
-        //arguments　parser
-        String file_training = args[0];
-        String file_validation = args[1];
-        String file_testing = args[2];
-        String file_output = args[3];
+    public static void training(String[] args){
+        String file_training = args[1];
+        String file_validation = args[2];
+        String file_model = args[3];
         int early_stopping_round = Integer.parseInt(args[4]);
         boolean maximize = args[5].equals("true");
         String eval_metric = args[6];
@@ -54,18 +49,23 @@ public class Main {
                 gamma,
                 num_thread);
 
-        double[] preds = tgb.predict(new TestData(file_testing).origin_feature);
+        ModelSerializer.save_model(tgb,file_model);
+    }
 
-        String[] strs = new String[preds.length];
-        for(int i=0;i<strs.length;i++){
-            strs[i] = String.valueOf(preds[i]);
-        }
-        String content = String.join("\n",strs);
-        try{
-            Files.write(Paths.get(file_output), content.getBytes());
-        }catch (IOException e){
-            e.printStackTrace();
-        }
+    public static void testing(String[] args){
+        String file_model = args[1];
+        String file_testing = args[2];
+        String file_output = args[3];
 
+        GBM tgb = ModelSerializer.load_model(file_model);
+        tgb.predict(file_testing, file_output);
+    }
+
+    public static void main(String[] args){
+        if(args[0].equals("training")){
+            training(args);
+        }else if(args[0].equals("testing")){
+            testing(args);
+        }
     }
 }
