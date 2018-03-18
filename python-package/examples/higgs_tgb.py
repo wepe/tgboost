@@ -1,8 +1,8 @@
 import tgboost as tgb
 
 # training phase
-ftrain = "~/PycharmProjects/data/train_.csv"
-fval = "~/PycharmProjects/data/test_.csv"
+ftrain = "data/train.csv"
+fval = "data/val.csv"
 params = {'categorical_features': ["PRI_jet_num"],
           'early_stopping_rounds': 10,
           'maximize': True,
@@ -24,6 +24,6 @@ params = {'categorical_features': ["PRI_jet_num"],
 model = tgb.train(ftrain, fval, params)
 
 # testing phase
-ftest = "~/PycharmProjects/data/test_.csv"
-foutput = "~/PycharmProjects/data/test_preds.csv"
+ftest = "data/test.csv"
+foutput = "data/test_preds.csv"
 model.predict(ftest, foutput)
