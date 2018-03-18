@@ -50,7 +50,7 @@ import tgboost as tgb
 
 # training phase
 ftrain = "data/train.csv"
-fval = "data/test.csv"
+fval = "data/val.csv"
 params = {'categorical_features': ["PRI_jet_num"],
           'early_stopping_rounds': 10,
           'maximize': True,
