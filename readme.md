@@ -76,6 +76,13 @@ ftest = "data/test.csv"
 foutput = "data/test_preds.csv"
 model.predict(ftest, foutput)
 
+# save the model
+model.save('./tgb.model')
+
+# load model and predict
+model = tgb.load_model('./tgb.model')
+model.predict(ftest, foutput)
+
 ```
 
 

@@ -1,9 +1,11 @@
 import os
+import shutil
 
 
 class Model:
-    def __init__(self, file_model):
+    def __init__(self, file_model, auto_clear=True):
         self.file_model = file_model
+        self.auto_clear = auto_clear
 
     def predict(self,ftest,foutput):
         jar_path = os.path.dirname(os.path.realpath(__file__)) 
@@ -15,5 +17,13 @@ class Model:
 
         os.system(command)
 
+    def save(self, path):
+        shutil.copy(self.file_model, path)
+
     def __del__(self):
-        os.remove(self.file_model)
+        if self.auto_clear:
+            os.remove(self.file_model)
+
+
+def load_model(file_model):
+    return Model(file_model, auto_clear=False)
