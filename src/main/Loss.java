@@ -64,7 +64,7 @@ class LogisticLoss extends Loss{
         double[] pred1 = transform(pred);
         double[] ret = new double[pred1.length];
         for(int i=0;i<ret.length;i++){
-            ret[i] = (1-label[i])/(1-pred1[i]) - label[i]/pred1[i];
+            ret[i] = pred1[i] - label[i];
         }
         return ret;
     }
@@ -73,7 +73,7 @@ class LogisticLoss extends Loss{
         double[] pred1 = transform(pred);
         double[] ret = new double[pred.length];
         for(int i=0;i<ret.length;i++){
-            ret[i] = label[i]/Math.pow(pred1[i],2.0) + (1-label[i])/Math.pow(1-pred1[i],2.0);
+            ret[i] = pred1[i]*(1.0 - pred1[i]);
         }
         return ret;
     }
