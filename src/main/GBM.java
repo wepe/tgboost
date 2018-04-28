@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+
 public class GBM {
     private ArrayList<Tree> trees = new ArrayList<>();
     private double eta;
@@ -125,30 +126,24 @@ public class GBM {
             this.trees.add(tree);
 
             logger.log(Level.INFO,
-                    "current tree has {0} nodes,including {1} nan tree nodes",
-                    new Object[]{tree.nodes_cnt,tree.nan_nodes_cnt});
-
+                    String.format("current tree has %d nodes,including %d nan tree nodes",tree.nodes_cnt,tree.nan_nodes_cnt));
 
             //print training information
             if(eval_metric.equals("")){
-                logger.log(Level.FINEST,"TGBoost round {0}",i);
+                logger.log(Level.FINEST,String.format("TGBoost round %d",i));
             }else {
                 double train_metric = calculate_metric(eval_metric,this.loss.transform(class_list.pred),class_list.label);
 
 
                 if(!do_validation){
-                    logger.log(Level.INFO,
-                            "TGBoost round {0},train-{1}:{2}",
-                            new Object[]{i,eval_metric,train_metric});
+                    logger.log(Level.INFO,String.format("TGBoost round %d,train-%s:%.6f",i,eval_metric,train_metric));
                 }else {
                     double[] cur_tree_pred = tree.predict(valset.origin_feature);
                     for(int n=0;n<val_pred.length;n++){
                         val_pred[n] += this.eta * cur_tree_pred[n];
                     }
                     double val_metric = calculate_metric(eval_metric,this.loss.transform(val_pred),valset.label);
-                    logger.log(Level.INFO,
-                            "TGBoost round {0},train-{1}:{2},val-{3}:{4}",
-                            new Object[]{i,eval_metric,train_metric,eval_metric,val_metric});
+                    logger.log(Level.INFO,String.format("TGBoost round %d,train-%s:%.6f,val-%s:%.6f",i,eval_metric,train_metric,eval_metric,val_metric));
                     //check whether to early stop
                     if(maximize){
                         if(val_metric>best_val_metric){
@@ -159,9 +154,7 @@ public class GBM {
                             become_worse_round += 1;
                         }
                         if(become_worse_round>early_stopping_rounds){
-                            logger.log(Level.INFO,
-                                    "TGBoost training stop,best round is {0},best val-{1} is {2}",
-                                    new Object[]{i,eval_metric,best_val_metric});
+                            logger.log(Level.INFO,String.format("TGBoost training stop,best round is %d,best val-%s is %.6f",i,eval_metric,best_val_metric));
                             break;
                         }
                     }else{
@@ -173,9 +166,7 @@ public class GBM {
                             become_worse_round += 1;
                         }
                         if(become_worse_round>early_stopping_rounds){
-                            logger.log(Level.INFO,
-                                    "TGBoost training stop,best round is{0},best val-{1} is {2}",
-                                    new Object[]{i,eval_metric,best_val_metric});
+                            logger.log(Level.INFO,String.format("TGBoost training stop,best round is %d,best val-%s is %.6f",i,eval_metric,best_val_metric));
                             break;
                         }
                     }
