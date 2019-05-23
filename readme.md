@@ -92,3 +92,4 @@ model.predict(ftest, foutput)
 - [SLIQ: A Fast Scalable Classifier for Data Mining](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.89.7734&rep=rep1&type=pdf)
 
 - [GBDT算法原理与系统设计简介](http://wepon.me/files/gbdt.pdf)
+- [efficient-decision-tree-notes (chinese)](https://github.com/wepe/efficient-decision-tree-notes)
